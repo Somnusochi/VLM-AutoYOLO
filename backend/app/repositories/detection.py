@@ -6,10 +6,15 @@ All DB queries live here — routes and services never touch Session directly.
 from __future__ import annotations
 
 from collections.abc import Sequence
+import uuid
 
 from sqlalchemy.orm import Session
 
 from ..models.detection import Detection, DetectionBox
+
+
+def _as_uuid(value: str | uuid.UUID) -> uuid.UUID:
+    return value if isinstance(value, uuid.UUID) else uuid.UUID(value)
 
 
 class DetectionRepository:
@@ -46,12 +51,13 @@ class DetectionRepository:
         return det
 
     def add_boxes(
-        self, detection_id: str, boxes: list[dict], commit: bool = False
+        self, detection_id: str | uuid.UUID, boxes: list[dict], commit: bool = False
     ) -> list[DetectionBox]:
         """boxes: [{"x1","y1","x2","y2","class_name","confidence","mask_polygon"}, ...]"""
+        detection_uuid = _as_uuid(detection_id)
         entities = [
             DetectionBox(
-                detection_id=detection_id,
+                detection_id=detection_uuid,
                 class_name=b["class_name"],
                 x1=b["x1"],
                 y1=b["y1"],
@@ -70,18 +76,19 @@ class DetectionRepository:
         return entities
 
     def replace_boxes(
-        self, detection_id: str, boxes: list[dict], commit: bool = False
+        self, detection_id: str | uuid.UUID, boxes: list[dict], commit: bool = False
     ) -> list[DetectionBox]:
         """Delete all existing boxes for a detection and insert new ones."""
+        detection_uuid = _as_uuid(detection_id)
         self.db.query(DetectionBox).filter(
-            DetectionBox.detection_id == detection_id,
+            DetectionBox.detection_id == detection_uuid,
         ).delete()
         # Note: If commit=True, the flush on delete is skipped, and the subsequent
         # add_boxes(commit=True) will commit both the delete and the inserts
         # in a single transaction.
         if not commit:
             self.db.flush()
-        return self.add_boxes(detection_id, boxes, commit=commit)
+        return self.add_boxes(detection_uuid, boxes, commit=commit)
 
     def update_detection(self, detection: Detection, commit: bool = False) -> None:
         if commit:
@@ -99,8 +106,8 @@ class DetectionRepository:
 
     # ── read ───────────────────────────────────────────
 
-    def get_by_id(self, detection_id: str) -> Detection | None:
-        return self.db.query(Detection).filter(Detection.id == detection_id).first()
+    def get_by_id(self, detection_id: str | uuid.UUID) -> Detection | None:
+        return self.db.query(Detection).filter(Detection.id == _as_uuid(detection_id)).first()
 
     def list(
         self,
@@ -131,8 +138,8 @@ class DetectionRepository:
         return (
             self.db.query(DetectionBox)
             .filter(
-                DetectionBox.id == box_id,
-                DetectionBox.detection_id == detection_id,
+                DetectionBox.id == _as_uuid(box_id),
+                DetectionBox.detection_id == _as_uuid(detection_id),
             )
             .first()
         )

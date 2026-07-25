@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 from starlette.responses import Response
 
 from ...core.database import get_db
-from ...schemas.detection import ExportBatchIn
-from ...services.export import FORMAT_LABELS, export_batch, export_single
+from ...schemas.detection import ExportAllIn, ExportBatchIn
+from ...services.export import FORMAT_LABELS, export_all, export_batch, export_single
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["export"])
@@ -46,4 +46,22 @@ def download_batch_yolo(
         content=data,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{label}_dataset.zip"'},
+    )
+
+
+@router.post("/detections/export-all")
+def download_all_detections(
+    body: ExportAllIn,
+    db: Session = Depends(get_db),
+) -> Response:
+    """Download every saved detection as one dataset archive."""
+    try:
+        data = export_all(db, format=body.format)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+    label = FORMAT_LABELS.get(body.format, body.format)
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{label}_all_dataset.zip"'},
     )

@@ -138,6 +138,16 @@ export function TrainingPanel({ detections, total, hasNextPage, isFetchingNextPa
     }
   };
 
+  const handleDownloadAllYoloSeg = async () => {
+    try {
+      const blob = await exportAll("yolo-seg");
+      downloadBlob(blob, "YOLO_Seg_all_dataset.zip");
+      toast.success(t("trainingPanel.datasetDownloaded"));
+    } catch {
+      toast.error(t("trainingPanel.datasetDownloadFailed"));
+    }
+  };
+
   // Tag filter for training candidates
   const trainCategories = useMemo(() => {
     const count = new Map<string, number>();
@@ -215,6 +225,15 @@ export function TrainingPanel({ detections, total, hasNextPage, isFetchingNextPa
           )}
         </span>
         <div className="flex items-center gap-2">
+          {total > 0 && (
+            <button
+              type="button"
+              onClick={handleDownloadAllYoloSeg}
+              className="text-xs text-primary-600 hover:underline"
+            >
+              {t("trainingPanel.downloadAllYoloSeg")}
+            </button>
+          )}
           {selectedCount > 0 && (
             <Dropdown
               menu={{

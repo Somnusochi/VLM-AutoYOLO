@@ -85,6 +85,7 @@ declare global {
   const downloadModelUrl: typeof import('./services/api').downloadModelUrl
   const downloadOnnxUrl: typeof import('./services/api').downloadOnnxUrl
   const downloadYoloTxt: typeof import('./lib/yoloExport').downloadYoloTxt
+  const exportAll: typeof import('./services/api').exportAll
   const exportBatch: typeof import('./services/api').exportBatch
   const exportSingleUrl: typeof import('./services/api').exportSingleUrl
   const extractKeyframes: typeof import('./services/api').extractKeyframes

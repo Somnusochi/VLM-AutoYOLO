@@ -73,7 +73,9 @@ class CUDAMemoryManager(GPUMemoryManager):
             return 1333
         if total_mb >= 12 * 1024:
             return 1024
-        return 800  # < 12 GB, conservative
+        if total_mb >= 10 * 1024:
+            return 800
+        return 640  # preserve small-object detail on 8 GB cards
 
     def resolve_attn_impl(self) -> str:
         try:

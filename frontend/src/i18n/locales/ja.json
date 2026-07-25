@@ -246,6 +246,7 @@
     "importDataset": "資料集合導入",
     "downloadDataset": "資料集合取得",
     "datasetDownloaded": "資料集合取得完了",
+    "downloadAllYoloSeg": "全 YOLO Seg を出力",
     "datasetDownloadFailed": "資料集合取得失敗",
     "loadAll": "全読込（残 {{remaining}} 件）",
     "allItemsLoaded": "全項目読込済",

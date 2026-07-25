@@ -75,6 +75,15 @@ export async function exportBatch(ids: string[], format = "yolo"): Promise<Blob>
   return data;
 }
 
+export async function exportAll(format = "yolo-seg"): Promise<Blob> {
+  const { data } = await request.post(
+    "/detections/export-all",
+    { format },
+    { responseType: "blob" },
+  );
+  return data;
+}
+
 // ── Training ────────────────────────────────────
 
 export type YoloSeries = Record<string, { label: string; variants: Record<string, string> }>;

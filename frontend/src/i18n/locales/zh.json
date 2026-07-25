@@ -252,6 +252,7 @@
     "statusCancelled": "已取消",
     "downloadDataset": "下载数据集",
     "importDataset": "导入数据集",
+    "downloadAllYoloSeg": "导出全部 YOLO Seg",
     "datasetDownloaded": "数据集下载成功",
     "datasetDownloadFailed": "数据集下载失败"
   },

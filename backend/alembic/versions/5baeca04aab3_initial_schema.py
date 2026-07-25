@@ -11,6 +11,10 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
+# Use PostgreSQL's efficient JSONB where available, while retaining support for
+# the zero-config SQLite development database.
+JSON_TYPE = sa.JSON().with_variant(postgresql.JSONB(), "postgresql")
+
 # revision identifiers
 revision: str = '5baeca04aab3'
 down_revision: str | None = None
@@ -24,7 +28,7 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('image_path', sa.Text(), nullable=False),
     sa.Column('image_name', sa.String(length=512), nullable=False),
-    sa.Column('categories', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.Column('categories', JSON_TYPE, nullable=False),
     sa.Column('model_name', sa.String(length=256), nullable=False),
     sa.Column('image_width', sa.Integer(), nullable=False),
     sa.Column('image_height', sa.Integer(), nullable=False),
@@ -43,9 +47,9 @@ def upgrade() -> None:
     sa.Column('epochs', sa.Integer(), nullable=False),
     sa.Column('imgsz', sa.Integer(), nullable=False),
     sa.Column('batch', sa.Integer(), nullable=False),
-    sa.Column('class_map', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('class_map', JSON_TYPE, nullable=True),
     sa.Column('status', sa.String(length=32), nullable=False),
-    sa.Column('metrics', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('metrics', JSON_TYPE, nullable=True),
     sa.Column('model_path', sa.Text(), nullable=True),
     sa.Column('error_message', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),

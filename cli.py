@@ -25,7 +25,9 @@ ALEMBIC = VENV / BIN / ("alembic.exe" if IS_WIN else "alembic")
 PIP = VENV / BIN / ("pip.exe" if IS_WIN else "pip")
 PIDFILE = ROOT / ".cli_pids.json"
 
-BACKEND_PORT = int(os.environ.get("BACKEND_PORT", 8000))
+# 8000 and 8500 are reserved by the local Windows networking stack.
+# Keep the environment override for users who need a different port.
+BACKEND_PORT = int(os.environ.get("BACKEND_PORT", 9000))
 FRONTEND_PORT = int(os.environ.get("FRONTEND_PORT", 5173))
 
 # ── Utilities ──────────────────────────────────────────
@@ -79,16 +81,25 @@ def check_node():
 
 def check_pnpm():
     step("Checking pnpm...")
-    if shutil.which("pnpm"):
-        ok(shutil.which("pnpm"))
+    # Windows 全局安装会生成 pnpm.cmd
+    pnpm = shutil.which("pnpm") or (shutil.which("pnpm.cmd") if IS_WIN else None)
+    if pnpm:
+        ok(pnpm)
         return
-    warn("pnpm not found. Install: npm install -g pnpm   or   brew install pnpm")
+    warn("pnpm not found in PATH. Install: npm install -g pnpm   or   brew install pnpm")
     print("  Attempting: npm install -g pnpm...")
     try:
-        run(["npm", "install", "-g", "pnpm"])
-        ok("pnpm installed")
-    except Exception:
-        fail("Failed to install pnpm. Install manually: npm install -g pnpm")
+        # .cmd 必须经由 cmd.exe 调用
+        npm_install = ["cmd", "/c", "npm", "install", "-g", "pnpm"] if IS_WIN else ["npm", "install", "-g", "pnpm"]
+        run(npm_install)
+        # 安装后需重新确认当前进程能找到 pnpm
+        pnpm = shutil.which("pnpm") or (shutil.which("pnpm.cmd") if IS_WIN else None)
+        if pnpm:
+            ok(f"installed: {pnpm}")
+            return
+        fail("pnpm was installed but is not in PATH. Restart the terminal, then run: pnpm -v")
+    except subprocess.CalledProcessError:
+        fail("Failed to install pnpm. Run manually: npm install -g pnpm")
 
 def check_ffmpeg():
     step("Checking ffmpeg...")
@@ -142,7 +153,9 @@ def install_node_deps():
     if (FRONTEND / "node_modules").exists():
         ok("already exists")
         return
-    run(["pnpm", "install"], cwd=FRONTEND)
+    # npm global installs pnpm as pnpm.cmd on Windows; cmd.exe is required to run it.
+    pnpm_install = ["cmd", "/c", "pnpm", "install"] if IS_WIN else ["pnpm", "install"]
+    run(pnpm_install, cwd=FRONTEND)
     ok("done")
 
 def check_db_config():
@@ -196,10 +209,29 @@ SAM2_MODEL_ID = "facebook/sam2.1-hiera-base-plus"
 def download_vlm():
     step("VLM model (LocateAnything-3B, ~6GB)...")
     model_dir = BACKEND / "model"
-    if model_dir.exists() and any(model_dir.iterdir()):
+    required_files = (
+        "config.json",
+        "model.safetensors.index.json",
+        "model-00001-of-00002.safetensors",
+        "model-00002-of-00002.safetensors",
+        "modeling_locateanything.py",
+        "modeling_qwen2.py",
+        "modeling_vit.py",
+        "preprocessor_config.json",
+        "processing_locateanything.py",
+        "processor_config.json",
+        "special_tokens_map.json",
+        "tokenizer_config.json",
+        "vocab.json",
+    )
+    if (
+        model_dir.exists()
+        and not any(model_dir.glob("*.segments.json"))
+        and all((model_dir / name).is_file() for name in required_files)
+    ):
         ok("already cached")
         return
-    print(f"  Downloading to {model_dir}... (~10-30 min)")
+    print(f"  Downloading missing model files to {model_dir}... (~10-30 min)")
     try:
         run(
             [str(PYTHON), "-c",
@@ -300,7 +332,7 @@ def start_frontend():
         warn(f"Port {FRONTEND_PORT} already in use. Try: FRONTEND_PORT={FRONTEND_PORT + 1} python3 cli.py start")
         return None
     proc = subprocess.Popen(
-        ["pnpm", "dev", "--port", str(FRONTEND_PORT)],
+        ["pnpm.cmd", "dev", "--port", str(FRONTEND_PORT)],
         cwd=FRONTEND,
         env={**os.environ, "VITE_BACKEND_PORT": str(BACKEND_PORT)},
         stdout=subprocess.DEVNULL,

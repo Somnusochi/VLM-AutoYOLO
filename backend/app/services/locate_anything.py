@@ -29,9 +29,15 @@ def _ensure_decord_stub():
     if _decord_loaded:
         return
     if sys.platform in ("darwin", "win32"):
-        stub_dir = str(Path(settings.resolved_model_dir) / "stubs")
-        if Path(stub_dir).exists() and stub_dir not in sys.path:
-            sys.path.insert(0, stub_dir)
+        try:
+            import decord  # type: ignore[import-not-found]  # noqa: F401
+        except ImportError:
+            import decord_stub
+
+            # Transformers checks optional imports before loading remote model
+            # code. Register the bundled image-only compatibility shim under
+            # the package name it expects.
+            sys.modules["decord"] = decord_stub
     _decord_loaded = True
 
 
@@ -80,17 +86,34 @@ class LocateAnythingWorker:
         self._set_progress(progress_cb, "downloading", "model", 50)
         attn_impl = gpu_mem.resolve_attn_impl()
         logger.info("Loading model to %s (attn=%s)...", device, attn_impl)
+        load_kwargs = {}
+        if device == "cuda":
+            total_mb = torch.cuda.get_device_properties(0).total_memory // (1024 * 1024)
+            if total_mb < 10 * 1024:
+                # The BF16 model is over 7 GiB. Keeping it entirely on an 8 GiB
+                # display GPU leaves no room for activations and triggers very
+                # slow WDDM shared-memory paging.
+                load_kwargs = {
+                    "device_map": "auto",
+                    "max_memory": {0: "5GiB", "cpu": "12GiB"},
+                }
+                logger.info("Low-VRAM CUDA detected; enabling CPU/GPU weight offload")
         self.model = AutoModel.from_pretrained(
             model_path,
             torch_dtype=self.dtype,
             trust_remote_code=True,
             attn_implementation=attn_impl,
             low_cpu_mem_usage=True,
+            **load_kwargs,
         )
 
         # ── Move to GPU ──
         self._set_progress(progress_cb, "loading", "gpu", 90)
-        self.model = self.model.to(device).eval()
+        if load_kwargs:
+            self.model.eval()
+            logger.info("Model device map: %s", getattr(self.model, "hf_device_map", {}))
+        else:
+            self.model = self.model.to(device).eval()
 
         logger.info("LocateAnything model ready on %s", device)
         self._set_progress(progress_cb, "loaded", "", 100)
@@ -112,7 +135,7 @@ class LocateAnythingWorker:
         self,
         image: Image.Image,
         question: str,
-        max_new_tokens: int = 512,
+        max_new_tokens: int = 128,
     ) -> dict:
         messages = [
             {
@@ -393,6 +416,7 @@ def detect(image_path: str | Path, categories: list[str]) -> dict:
         try:
             result = worker.detect(img, categories)
             raw_text = result["answer"]
+            logger.debug("Raw model response: %r", raw_text)
         except Exception as exc:
             raise InferenceError(f"Model inference failed: {exc}") from exc
 

@@ -90,3 +90,7 @@ class DetectionOut(DetectionListItem):
 class ExportBatchIn(BaseSchema):
     detection_ids: list[str] = Field(..., min_length=1)
     format: str = "yolo"
+
+
+class ExportAllIn(BaseSchema):
+    format: str = "yolo-seg"

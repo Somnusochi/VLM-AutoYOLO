@@ -252,6 +252,7 @@
     "statusCancelled": "Cancelled",
     "downloadDataset": "Download Dataset",
     "importDataset": "Import Dataset",
+    "downloadAllYoloSeg": "Export All YOLO Seg",
     "datasetDownloaded": "Dataset downloaded successfully",
     "datasetDownloadFailed": "Failed to download dataset"
   },
