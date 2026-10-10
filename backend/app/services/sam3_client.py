@@ -10,6 +10,8 @@ import threading
 import time
 from pathlib import Path
 
+from ..core.config import hf_repo_cache_dir
+
 logger = logging.getLogger(__name__)
 
 SAM3_PORT = 8002
@@ -85,7 +87,7 @@ def start_sam3_server() -> None:
 
     hf_token = os.environ.get("HF_TOKEN", "")
     # Only require HF_TOKEN if the model hasn't been cached yet
-    model_cache = Path.home() / ".cache" / "huggingface" / "hub" / "models--facebook--sam3"
+    model_cache = hf_repo_cache_dir("facebook/sam3")
     if not hf_token and not model_cache.exists():
         raise RuntimeError(
             "HF_TOKEN environment variable is not set and SAM3 model is not cached. "

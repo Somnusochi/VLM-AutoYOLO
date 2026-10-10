@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import enum
 import logging
-import os
 import threading
 import time
 from pathlib import Path
@@ -14,7 +13,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from ..core.config import settings
+from ..core.config import hf_repo_cache_dir, settings
 from ..core.gpu_memory import get_memory_manager
 
 logger = logging.getLogger(__name__)
@@ -151,12 +150,10 @@ def _find_contours(mask: np.ndarray):
         return []
 
 
-def _hf_home() -> Path:
-    return Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"))
-
-
 def _hf_repo_cache_dir(model_id: str, hf_home: Path | None = None) -> Path:
-    return (hf_home or _hf_home()) / "hub" / f"models--{model_id.replace('/', '--')}"
+    if hf_home is not None:
+        return hf_home / "hub" / f"models--{model_id.replace('/', '--')}"
+    return hf_repo_cache_dir(model_id)
 
 
 def _find_cached_checkpoint(

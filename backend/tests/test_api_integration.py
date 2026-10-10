@@ -14,6 +14,8 @@ import time
 import pytest
 import requests
 
+from app.core.config import hf_repo_cache_dir
+
 BASE = "http://127.0.0.1:8000/api/v1"
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CAT_DIR = os.path.join(_PROJECT_ROOT, "test_images", "cat")
@@ -109,10 +111,7 @@ class TestDetectionFlow:
         assert len(data["boxes"]) > 0
 
     @pytest.mark.skipif(
-        not os.environ.get("HF_TOKEN")
-        and not os.path.isdir(
-            os.path.expanduser("~/.cache/huggingface/hub/models--facebook--sam3")
-        ),
+        not os.environ.get("HF_TOKEN") and not hf_repo_cache_dir("facebook/sam3").is_dir(),
         reason="SAM3 requires HF_TOKEN or cached model",
     )
     def test_detect_sam3(self):

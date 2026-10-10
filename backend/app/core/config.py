@@ -70,3 +70,19 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def hf_repo_cache_dir(model_id: str) -> Path:
+    """Local cache directory for a Hugging Face repo id.
+
+    Honors HF_HUB_CACHE first, then HF_HOME (the hub lives at <HF_HOME>/hub), then
+    the huggingface_hub default. Reads os.environ directly so it always agrees with
+    what transformers/huggingface_hub themselves see — backend/.env is only read by
+    pydantic-settings and is never exported to the process environment.
+    """
+    hub_cache = os.environ.get("HF_HUB_CACHE")
+    if hub_cache:
+        base = Path(hub_cache)
+    else:
+        base = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
+    return base / f"models--{model_id.replace('/', '--')}"
